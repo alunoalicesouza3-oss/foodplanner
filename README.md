@@ -1,39 +1,13 @@
-# FoodPlanner — Planejamento Inteligente de Refeições
+# FoodPlanner — protótipo v3
 
-Projeto acadêmico de um sistema web responsivo para apoiar o planejamento de refeições, o controle de alimentos e suas datas de validade, a consulta de receitas e a organização de uma lista de compras.
+Protótipo web responsivo para planejamento de refeições, controle de estoque e validade, receitas sugeridas e lista de compras.
 
-## Funcionalidades do protótipo atual
+## Como testar
+1. Abra `index.html` em um navegador moderno.
+2. Cadastre alimentos com quantidades e datas de validade.
+3. Acesse Receitas e confira a compatibilidade com o estoque.
+4. As receitas com maior compatibilidade aparecem primeiro; entre receitas com compatibilidade igual, são priorizadas aquelas que aproveitam alimentos próximos do vencimento.
+5. Alimentos vencidos não são considerados disponíveis para receitas.
 
-- Cadastro, edição, exclusão e acompanhamento de validade de alimentos.
-- Sugestões de receitas comparando ingredientes com o estoque cadastrado.
-- Lista de compras com controle de itens pendentes/comprados.
-- Cadastro de refeições habituais e indicação de ingredientes faltantes.
-- Armazenamento local no navegador para testes no mesmo dispositivo.
-
-## Estado atual
-
-Esta versão é um protótipo front-end em HTML, CSS e JavaScript, com estilos e scripts incorporados ao `index.html`. Ela serve como base para a próxima etapa de desenvolvimento.
-
-**Importante:** login real, contas individuais, persistência segura em banco de dados e sincronização entre dispositivos ainda precisam ser implementados e testados antes de serem considerados funcionalidades prontas.
-
-## Como executar localmente
-
-1. Baixe ou clone este repositório.
-2. Abra o arquivo `index.html` em um navegador atualizado.
-
-Não há dependências de instalação nesta etapa.
-
-## Próximas etapas planejadas
-
-- Configurar autenticação e banco de dados.
-- Separar os dados de cada usuário e aplicar regras de segurança no banco.
-- Melhorar a comparação de ingredientes e quantidades nas receitas.
-- Validar os cálculos e classificações de validade.
-- Testar o layout em celular, tablet e computador.
-- Publicar a aplicação e verificar o acesso por um link público.
-
-## Tecnologias
-
-- HTML5
-- CSS3
-- JavaScript
+## Limitações desta versão
+Os dados ficam no armazenamento local do navegador. Ainda não há autenticação real, banco de dados remoto ou sincronização entre dispositivos. As sugestões usam um catálogo demonstrativo de receitas e comparação aproximada por nome dos ingredientes.
