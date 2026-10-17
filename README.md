@@ -2,6 +2,14 @@
 
 Projeto acadêmico de um sistema web responsivo para apoiar o planejamento de refeições, o controle de alimentos e suas datas de validade, a consulta de receitas e a organização de uma lista de compras.
 
+## Funcionalidades do protótipo atual
+
+- Cadastro, edição, exclusão e acompanhamento de validade de alimentos.
+- Sugestões de receitas comparando ingredientes com o estoque cadastrado.
+- Lista de compras com controle de itens pendentes/comprados.
+- Cadastro de refeições habituais e indicação de ingredientes faltantes.
+- Armazenamento local no navegador para testes no mesmo dispositivo.
+
 ## Estado atual
 
 Esta versão é um protótipo front-end em HTML, CSS e JavaScript, com estilos e scripts incorporados ao `index.html`. Ela serve como base para a próxima etapa de desenvolvimento.
@@ -19,6 +27,7 @@ Não há dependências de instalação nesta etapa.
 
 - Configurar autenticação e banco de dados.
 - Separar os dados de cada usuário e aplicar regras de segurança no banco.
+- Melhorar a comparação de ingredientes e quantidades nas receitas.
 - Validar os cálculos e classificações de validade.
 - Testar o layout em celular, tablet e computador.
 - Publicar a aplicação e verificar o acesso por um link público.
