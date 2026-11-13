@@ -344,7 +344,7 @@ function recipeScore(r){
 }
 function recipeSort(a,b){/* Primeiro receitas possíveis; depois cobertura, aproveitamento de validade e variedade do estoque utilizado. */return (b.score.pct===100)-(a.score.pct===100)||b.score.pct-a.score.pct||b.score.nearExpiry-a.score.nearExpiry||b.score.urgency-a.score.urgency||b.score.stockCoverage-a.score.stockCoverage||a.minutes-b.minutes;}
 function urgencyLabel(score){if(!score.urgent.length)return '';const soon=score.urgent.filter(x=>x.days<=3).length;return soon?`Prioriza ${soon===1?'1 ingrediente':' '+soon+' ingredientes'} com validade próxima`:'Aproveita alimentos que vencem em até 7 dias';}
-function foodCard(f,actions=true){const d=daysUntil(f.expiry),s=statusFor(d);return `<div class="food-row"><div class="food-emoji">${foodEmoji(f.category)}</div><div class="row-main"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(f.qty)} · ${escapeHtml(f.category)} · Validade: ${fmtDate(f.expiry)}</small></div><span class="pill ${s.cls}">${s.label}</span>${actions?`<div class="row-actions"><button class="icon-btn" data-edit="${f.id}" title="Editar" aria-label="Editar ${escapeHtml(f.name)}">✎</button><button class="icon-btn" data-delete="${f.id}" title="Excluir" aria-label="Excluir ${escapeHtml(f.name)}">×</button></div>`:''}</div>`}
+function foodCard(f,actions=true){const d=daysUntil(f.expiry),s=statusFor(d),isExpired=d<0;return `<div class="food-row"><div class="food-emoji">${foodEmoji(f.category)}</div><div class="row-main"><strong>${escapeHtml(f.name)}</strong><small>${escapeHtml(f.qty)} · ${escapeHtml(f.category)} · Validade: ${fmtDate(f.expiry)}</small></div><span class="pill ${s.cls}">${s.label}</span>${actions?`<div class="row-actions">${isExpired?`<button class="btn danger small" data-discard="${f.id}" title="Remover item vencido do estoque">🗑️ Descartar</button>`:''}<button class="icon-btn" data-edit="${f.id}" title="Editar" aria-label="Editar ${escapeHtml(f.name)}">✎</button><button class="icon-btn" data-delete="${f.id}" title="Excluir" aria-label="Excluir ${escapeHtml(f.name)}">×</button></div>`:''}</div>`}
 function foodEmoji(cat){return ({'Hortifruti':'🥦','Laticínios':'🥛','Proteínas':'🍗','Grãos e massas':'🌾','Padaria':'🍞','Congelados':'🧊','Outros':'🥫'})[cat]||'🥫'}
 function renderFoods(){const q=normalize($('food-search').value),filter=$('food-filter').value,sort=$('food-sort').value;let list=state.foods.filter(f=>normalize(f.name).includes(q));list=list.filter(f=>{const k=statusFor(daysUntil(f.expiry)).key;return filter==='all'||(filter==='danger'&&k==='danger')||k===filter});list.sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,'pt-BR'):a.expiry.localeCompare(b.expiry));$('food-list-sub').textContent=`${state.foods.length} alimento${state.foods.length===1?'':'s'} cadastrado${state.foods.length===1?'':'s'}`;const suspicious=state.foods.filter(f=>/[;,.+|]/.test(f.name)||/\s+e\s+/i.test(f.name));const warning=suspicious.length?`<div class="empty" style="margin-bottom:10px;border-color:#e8c78e;background:#fff8e9;color:#815b20;text-align:left"><strong>⚠️ Confira ${suspicious.length===1?'este cadastro':'estes cadastros'}:</strong> ${suspicious.map(f=>'“'+escapeHtml(f.name)+'”').join(', ')} parece(m) conter mais de um alimento no mesmo registro. Edite ou exclua e cadastre cada item separadamente para controlar quantidade e validade corretamente.</div>`:'';$('food-list').innerHTML=warning+(list.length?list.map(f=>foodCard(f)).join(''):`<div class="empty"><span>🥬</span>${state.foods.length?'Nenhum alimento corresponde ao filtro.':'Seu estoque está vazio. Cadastre o primeiro alimento acima!'}</div>`);}
 function aiIngredientAvailable(item){
@@ -353,9 +353,33 @@ function aiIngredientAvailable(item){
 }
 function aiMissingIngredients(recipe){return (recipe.ingredients||[]).filter(i=>!i.optional&&!aiIngredientAvailable(i));}
 function aiRecipeCard(r){
- const ingredients=(r.ingredients||[]).map(i=>{const available=aiIngredientAvailable(i),days=available?ingredientExpiry(i.name):null;const label=`${i.name}${i.quantity?` · ${i.quantity} ${i.unit||''}`:''}`;return `<span class="ingredient ${available?(days!==null&&days<=3?'expiring':'have'):'missing'}">${available?'✓ ':'＋ '}${escapeHtml(label)}${available&&days!==null&&days<=7?` · ${days===0?'vence hoje':`vence em ${days}d`}`:(!available&&!i.optional?' · comprar':'')}</span>`}).join('');
- const missing=aiMissingIngredients(r),optional=(r.ingredients||[]).filter(i=>i.optional);
- return `<article class="panel ai-recipe-card"><div class="panel-head"><div style="display:flex;align-items:center;gap:12px"><div class="food-emoji">${escapeHtml(r.emoji||'🍽️')}</div><div><h2>${escapeHtml(r.name)}</h2><p>${Number(r.minutes)||20} min · ${Number(r.servings)||2} porção(ões)</p></div></div><span class="recipe-match">FoodPlanner</span></div>${r.reason?`<p class="ai-reason">🧠 ${escapeHtml(r.reason)}</p>`:''}<div class="recipe-ingredients">${ingredients}${optional.map(i=>`<span class="ingredient">${escapeHtml(i.name)} · opcional</span>`).join('')}</div>${missing.length?`<p class="ai-missing">Faltam ${missing.length} ingrediente(s) principal(is): ${missing.map(i=>escapeHtml(i.name)).join(', ')}.</p>`:'<p class="note" style="color:var(--green)">✓ Todos os ingredientes principais foram encontrados no estoque.</p>'}<details><summary style="cursor:pointer;font-size:13px;font-weight:750;color:var(--green)">Ver modo de preparo</summary><ol style="font-size:13px;color:#526258;line-height:1.8">${(r.steps||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>${r.tips?`<p class="note">Dica: ${escapeHtml(r.tips)}</p>`:''}</details><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">${missing.length?`<button class="btn secondary small" data-ai-add-missing="${escapeHtml(r.id)}">＋ Adicionar faltantes à lista</button>`:'<span class="pill ok">Ingredientes disponíveis</span>'}</div></article>`;
+ const ingredients = (r.ingredients || []).map(i => {
+  const available = aiIngredientAvailable(i), days = available ? ingredientExpiry(i.name) : null;
+  const label = `${i.name}${i.quantity ? ` · ${i.quantity} ${i.unit || ''}` : ''}`;
+  return `<span class="ingredient ${available ? (days !== null && days <= 3 ? 'expiring' : 'have') : 'missing'}">${available ? '✓ ' : '🛒 '}${escapeHtml(label)}${available && days !== null && days <= 7 ? ` · ${days === 0 ? 'vence hoje' : `vence em ${days}d`}` : (!available && !i.optional ? ' · comprar' : '')}</span>`;
+ }).join('');
+ const missing = aiMissingIngredients(r), optional = (r.ingredients || []).filter(i => i.optional);
+ const badgeText = missing.length === 0 ? '100% Estoque' : (missing.length === 1 ? 'Falta 1 item' : `Faltam ${missing.length} itens`);
+ return `<article class="panel ai-recipe-card">
+  <div class="panel-head">
+   <div style="display:flex;align-items:center;gap:12px">
+    <div class="food-emoji">${escapeHtml(r.emoji || '🍽️')}</div>
+    <div><h2>${escapeHtml(r.name)}</h2><p>${Number(r.minutes) || 20} min · ${Number(r.servings) || 2} porção(ões)</p></div>
+   </div>
+   <span class="recipe-match">${badgeText}</span>
+  </div>
+  ${r.reason ? `<p class="ai-reason">🧠 ${escapeHtml(r.reason)}</p>` : ''}
+  <div class="recipe-ingredients">${ingredients}${optional.map(i => `<span class="ingredient">${escapeHtml(i.name)} · opcional</span>`).join('')}</div>
+  ${missing.length ? `<p class="ai-missing">🛒 Sugestão de compra para completar: <strong>${missing.map(i => escapeHtml(i.name)).join(', ')}</strong>.</p>` : '<p class="note" style="color:var(--green)">✓ Todos os ingredientes necessários estão no seu estoque.</p>'}
+  <details open style="margin-top:12px;background:#f8faf8;padding:12px;border-radius:12px;border:1px solid var(--line)">
+   <summary style="cursor:pointer;font-size:13px;font-weight:750;color:var(--green)">📖 Como preparar (passo a passo)</summary>
+   <ol style="font-size:13px;color:#3d4d44;line-height:1.75;margin:8px 0 4px;padding-left:20px">${(r.steps || []).map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ol>
+   ${r.tips ? `<p class="note" style="margin-top:8px">💡 <strong>Dica:</strong> ${escapeHtml(r.tips)}</p>` : ''}
+  </details>
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+   ${missing.length ? `<button class="btn secondary small" data-ai-add-missing="${escapeHtml(r.id)}">＋ Adicionar ${missing.length === 1 ? 'item' : 'itens'} de compra à lista</button>` : '<span class="pill ok">Pronta para fazer</span>'}
+  </div>
+ </article>`;
 }
 function renderRecipes(){
  const q=normalize($('recipe-search').value);
@@ -368,49 +392,395 @@ function renderRecipes(){
 function classifyStockFood(food){
  const n=normalize(food.name),cat=normalize(food.category);
  const roles=new Set();
- if(/pao|torrada|biscoito|tapioca|cuscuz|massa de pastel/.test(n)||cat==='padaria')roles.add('base');
- if(/arroz|macarrao|massa|batata|mandioca|quinoa|polenta|farofa|inhame/.test(n))roles.add('carb');
- if(/frango|carne|peixe|atum|sardinha|ovo|linguica|salsicha|tofu|presunto|bacon|peru/.test(n)||cat==='proteinas')roles.add('protein');
- if(/banana|mamao|maca|manga|laranja|morango|uva|abacate|melancia|abacaxi|pera|kiwi|mel[aã]o|fruta/.test(n))roles.add('fruit');
- if(/tomate|cebola|alho|cenoura|abobrinha|berinjela|pepino|alface|couve|espinafre|brocolis|couve-flor|repolho|pimentao|milho|ervilha|abobora|chuchu/.test(n))roles.add('vegetable');
- if(/leite|iogurte|queijo|requeijao|cream cheese|manteiga|creme de leite/.test(n)||cat==='laticios')roles.add('dairy');
- if(/aveia|granola|chia|psyllium|linhaca|gergelim|semente|castanha|amendoim|noz|granola|whey/.test(n))roles.add('cereal');
- if(/nutella|creme de avela|geleia|doce de leite|pasta de amendoim|mel|chocolate|cacau/.test(n))roles.add('spread');
- if(/molho|extrato de tomate|azeite|oleo|vinagre|sal|pimenta|mostarda|ketchup|maionese|alcaparra|ervas|tempero/.test(n))roles.add('seasoning');
- if(/feijao|lentilha|grao-de-bico/.test(n))roles.add('legume');
+ if(/\b(pao|torrada|biscoito|tapioca|cuscuz|massa de pastel|panqueca|waffle)\b/.test(n))roles.add('base');
+ if(/\b(arroz|macarrao|espaguete|penne|fusilli|talharim|lasanha|batata|mandioca|quinoa|polenta|inhame)\b/.test(n))roles.add('carb');
+ if(/\b(frango|carne|peixe|atum|sardinha|ovo|linguica|salsicha|tofu|presunto|bacon|peru|bife|patinho|acem)\b/.test(n)||cat==='proteinas')roles.add('protein');
+ if(/\b(banana|mamao|maca|manga|laranja|morango|uva|abacate|melancia|abacaxi|pera|kiwi|melao)\b/.test(n))roles.add('fruit');
+ if(/\b(tomate|cebola|alho|cenoura|abobrinha|berinjela|pepino|alface|couve|espinafre|brocolis|couve-flor|repolho|pimentao|milho|ervilha|abobora|chuchu)\b/.test(n))roles.add('vegetable');
+ if(/\b(leite|iogurte|queijo|requeijao|cream cheese|manteiga|creme de leite|ricota|cottage)\b/.test(n)||cat==='laticinios')roles.add('dairy');
+ if(/\b(aveia|granola|chia|psyllium|linhaca|gergelim|semente|castanha|amendoim|noz|whey)\b/.test(n))roles.add('cereal');
+ if(/\b(nutella|creme de avela|geleia|doce de leite|pasta de amendoim|mel|chocolate|cacau|goiabada)\b/.test(n))roles.add('sweet_spread');
+ if(/\b(molho de tomate|extrato de tomate|passata|azeite|oleo|vinagre|sal|pimenta|mostarda|ketchup|maionese|alcaparra|ervas|tempero|alho|shoyu|pesto)\b/.test(n))roles.add('savory_seasoning');
+ if(/\b(feijao|lentilha|grao-de-bico)\b/.test(n))roles.add('legume');
  return [...roles];
 }
-function makeStockRecipe(items,mealType,variant){
- const names=items.map(x=>x.name),norms=names.map(normalize),has=(role)=>items.some(x=>x.roles.includes(role));
- const label=names.join(' + '),allFruit=has('fruit')&&!has('protein')&&!has('vegetable');
- let name,emoji,minutes,steps;
- if(has('base')&&has('spread')){name=`${names[0]} com ${names[1]}`;emoji='🥪';minutes=8;steps=['Separe os ingredientes e prepare a base conforme a embalagem ou o ponto desejado.','Distribua o acompanhamento por toda a superfície.','Finalize com os demais ingredientes e sirva.'];}
- else if(has('fruit')&&(has('dairy')||has('cereal'))&&!has('protein')){name=`Bowl de ${names.filter(x=>items.find(y=>y.name===x).roles.includes('fruit')).join(' e ')} com ${names.filter(x=>!items.find(y=>y.name===x).roles.includes('fruit')).join(' e ')}`;emoji='🥣';minutes=7;steps=['Lave e corte as frutas, quando necessário.','Misture ou disponha os ingredientes em uma tigela.','Finalize com sementes, cereais ou outro complemento e sirva.'];}
- else if(has('carb')&&has('protein')){name=`${names.find(x=>items.find(y=>y.name===x).roles.includes('carb'))} com ${names.find(x=>items.find(y=>y.name===x).roles.includes('protein'))}${has('vegetable')?' e legumes':''}`;emoji='🍛';minutes=25;steps=['Prepare o ingrediente principal conforme o tipo de alimento.','Cozinhe ou aqueça a proteína completamente, respeitando os cuidados de segurança alimentar.','Acrescente os vegetais, se houver, e tempere a gosto.','Monte o prato e sirva ainda quente.'];}
- else if(has('base')&&has('protein')){name=`${names[0]} recheado com ${names[1]}`;emoji='🥙';minutes=12;steps=['Prepare a base conforme necessário.','Cozinhe ou aqueça a proteína completamente.','Recheie, acrescente os complementos e sirva.'];}
- else if(has('fruit')&&has('spread')){name=`${names[0]} com ${names[1]}`;emoji='🍓';minutes=5;steps=['Lave e prepare a fruta.','Sirva com o acompanhamento, ajustando a quantidade ao seu gosto.'];}
- else if(has('protein')&&has('vegetable')){name=`Preparado de ${names.filter(x=>items.find(y=>y.name===x).roles.includes('protein')).join(' e ')} com vegetais`;emoji='🍳';minutes=20;steps=['Higienize e corte os vegetais.','Prepare a proteína até estar completamente cozida.','Acrescente os vegetais e cozinhe até atingirem a textura desejada.'];}
- else {name=`Combinação de ${label}`;emoji=allFruit?'🍇':'🍽️';minutes=10;steps=['Higienize e prepare os ingredientes conforme necessário.','Combine os alimentos em uma preparação simples, respeitando o tempo de preparo de cada um.','Ajuste os temperos e sirva.'];}
- const urgency=items.reduce((sum,x)=>sum+Math.max(0,8-x.days),0);
- return {id:'local-'+uid(),name,emoji,minutes,servings:2,reason:urgency?`Combinação criada com ${items.length} alimentos do seu estoque, priorizando itens com validade mais próxima.`:`Combinação criada dinamicamente com ${items.length} alimentos disponíveis no seu estoque.`,ingredients:items.map(x=>({name:x.name,quantity:'',unit:''})),steps,tips:'Confira a conservação e o ponto de cozimento de cada alimento. Ajuste as porções à sua necessidade.',_score:urgency+items.length*2+variant*.001};
+
+function isCompatibleCombo(items){
+ const has = (role) => items.some(x => x.roles.includes(role));
+ const hasSweet = has('sweet_spread');
+ const hasSavoryMain = has('carb') || has('protein') || has('vegetable') || has('savory_seasoning') || has('legume');
+ if(hasSweet && hasSavoryMain) return false;
+ return true;
 }
+
+function makeStockRecipe(items, mealType, variant, missingSuggestions = []){
+ const stockNames = items.map(x => x.name);
+ const missingList = Array.isArray(missingSuggestions) ? missingSuggestions : (missingSuggestions ? [missingSuggestions] : []);
+ const missingNames = missingList.map(m => m.name);
+ const allNames = [...stockNames, ...missingNames];
+ const has = (role) => items.some(x => x.roles.includes(role));
+ const getByRole = (role) => items.filter(x => x.roles.includes(role)).map(x => x.name);
+ 
+ let name, emoji, minutes, steps, tips;
+
+ if(has('carb') && !has('protein') && (has('savory_seasoning') || has('vegetable') || missingList.length)){
+  const carb = getByRole('carb')[0];
+  const extras = allNames.filter(n => n !== carb);
+  name = `${carb} ao molho com ${extras.join(' e ')}`;
+  emoji = '🍝';
+  minutes = 20;
+  steps = [
+   `Cozinhe o(a) ${carb} em água fervente com uma pitada de sal até ficar no ponto desejado (al dente) e escorra.`,
+   `Em uma panela, aqueça um fio de azeite ou óleo e prepare ${extras.join(' e ')} em fogo baixo por alguns minutos.`,
+   `Se estiver usando molho de tomate, adicione um pouco da água do cozimento do ${carb} para deixar o molho mais encorpado.`,
+   `Misture o(a) ${carb} escorrido diretamente na panela, envolva bem por 1 minuto e sirva quente.`
+  ];
+  tips = missingList.length 
+   ? `Você já tem ${carb} no estoque; comprando ${missingNames.join(' e ')}, o almoço fica completo.`
+   : `Finalize com ervas ou queijo ralado se tiver disponível.`;
+ }
+ else if(has('carb') && has('protein')){
+  const carb = getByRole('carb')[0];
+  const prot = getByRole('protein')[0];
+  const vegs = [...getByRole('vegetable'), ...missingNames.filter(n => n !== carb && n !== prot)];
+  name = `${carb} com ${prot}${vegs.length ? ' e ' + vegs.join(', ') : ''}`;
+  emoji = '🍛';
+  minutes = 25;
+  steps = [
+   `Prepare o(a) ${carb} conforme o modo tradicional (cozido em água ou refogado).`,
+   `Tempere ${prot} a gosto e cozinhe em frigideira ou panela até dourar completamente por dentro.`,
+   vegs.length ? `Acrescente ${vegs.join(', ')} e refogue até ficarem macios.` : `Ajuste o sal e os temperos.`,
+   `Sirva ${prot} acompanhado(a) de ${carb} ainda quente.`
+  ];
+  tips = `Uma refeição equilibrada com carboidrato e proteína.`;
+ }
+ else if(has('base') && (has('sweet_spread') || has('dairy'))){
+  name = `${allNames[0]} com ${allNames.slice(1).join(' e ')}`;
+  emoji = '🥪';
+  minutes = 8;
+  steps = [
+   `Prepare a base (${allNames[0]}): se preferir, aqueça na frigideira ou torradeira por 2 minutos para ficar crocante.`,
+   `Espalhe ${allNames.slice(1).join(' e ')} de forma uniforme sobre a base.`,
+   `Sirva imediatamente como café da manhã ou lanche rápido.`
+  ];
+  tips = `Você pode complementar com uma fruta fresca ou café/leite.`;
+ }
+ else if(has('sweet_spread') && missingList.length){
+  const baseName = missingNames[0];
+  const spreadName = stockNames[0];
+  name = `${baseName} com ${spreadName}`;
+  emoji = '🥐';
+  minutes = 6;
+  steps = [
+   `Prepare ${baseName} (se for pão, você pode aquecer levemente para ficar crocante; se for fruta, higienize e fatie).`,
+   `Espalhe ou sirva ${spreadName} por cima na quantidade desejada.`,
+   `Sirva imediatamente no café da manhã ou lanche.`
+  ];
+  tips = `Você já tem ${spreadName} no estoque! Basta comprar ${missingNames.join(' e ')} para montar essa opção.`;
+ }
+ else if(has('fruit') && (has('dairy') || has('cereal') || has('sweet_spread') || missingList.length) && !has('protein')){
+  const fruits = getByRole('fruit');
+  const others = allNames.filter(n => !fruits.includes(n));
+  name = `Tigela de ${fruits.join(' e ')} com ${others.join(' e ')}`;
+  emoji = '🥣';
+  minutes = 7;
+  steps = [
+   `Higienize e corte ${fruits.join(' e ')} em cubos ou rodelas médias.`,
+   `Em uma tigela, combine com ${others.join(' e ')}.`,
+   `Misture levemente e sirva.`
+  ];
+  tips = `Adicionar aveia ou chia ajuda a aumentar a saciedade.`;
+ }
+ else if(has('base') && has('protein')){
+  name = `${allNames[0]} recheado(a) com ${allNames.slice(1).join(' e ')}`;
+  emoji = '🥙';
+  minutes = 12;
+  steps = [
+   `Prepare o recheio cozinhando ou grelhando ${allNames.slice(1).join(' e ')} até ficar bem passado e temperado.`,
+   `Aqueça ${allNames[0]} em uma frigideira limpa.`,
+   `Distribua o recheio no centro, dobre ou feche e sirva em seguida.`
+  ];
+  tips = `Um toque de tomate ou folhas verdes deixa o lanche mais fresco.`;
+ }
+ else if(has('protein') && (has('vegetable') || missingList.length)){
+  const prot = getByRole('protein').join(' e ');
+  const vegs = allNames.filter(n => !getByRole('protein').includes(n)).join(', ');
+  name = `${prot} salteado(a) com ${vegs}`;
+  emoji = '🍳';
+  minutes = 20;
+  steps = [
+   `Higienize e corte ${vegs} em pedaços uniformes.`,
+   `Em uma panela ou frigideira, cozinhe ${prot} até dourar completamente.`,
+   `Junte ${vegs}, tempere com sal a gosto e refogue por mais 5 minutos.`,
+   `Sirva imediatamente.`
+  ];
+  tips = `Opção leve e rica em proteínas.`;
+ }
+ else {
+  name = `Combinado de ${allNames.join(', ')}`;
+  emoji = '🍽️';
+  minutes = 15;
+  steps = [
+   `Separe e higienize todos os ingredientes: ${allNames.join(', ')}.`,
+   `Prepare primeiro os itens que exigem cozimento até ficarem no ponto ideal.`,
+   `Combine os ingredientes, ajuste os temperos a gosto e sirva.`
+  ];
+  tips = `Verifique sempre a validade e o ponto de cozimento antes de servir.`;
+ }
+
+ let expiryScore = 0;
+ const urgentItems = [];
+ for(const x of items){
+  if(x.days <= 3){ expiryScore += 500 + (4 - x.days) * 50; urgentItems.push(`${x.name} (${x.days === 0 ? 'vence hoje' : x.days + 'd'})`); }
+  else if(x.days <= 7){ expiryScore += 200 + (8 - x.days) * 20; urgentItems.push(`${x.name} (${x.days}d)`); }
+ }
+
+ const stockScore = items.length * 60;
+ const shoppingPenalty = missingList.length * -35;
+ const totalScore = expiryScore + stockScore + shoppingPenalty + (variant * 0.001);
+
+ const ingredientsList = items.map(x => ({ name: x.name, quantity: '', unit: '', optional: false }));
+ for(const m of missingList){
+  ingredientsList.push({ name: m.name, quantity: '', unit: '', optional: false });
+ }
+
+ let reason = '';
+ if(!items.length){
+  reason = `Ideia extra para inspirar: receita completa para planejar suas próximas compras.`;
+ } else if(urgentItems.length){
+  reason = `Prioridade de validade: aproveita ${urgentItems.join(', ')} antes que estraguem.`;
+ } else if(!missingList.length){
+  reason = `100% com seu estoque: usa ${items.length} ingredientes que você já tem em casa.`;
+ } else {
+  reason = `Aproveita ${stockNames.join(', ')} do seu estoque e sugere comprar ${missingNames.join(' e ')} para completar.`;
+ }
+
+ return {
+  id: 'local-' + uid(),
+  name,
+  emoji,
+  minutes,
+  servings: 2,
+  reason,
+  ingredients: ingredientsList,
+  steps,
+  tips,
+  _score: totalScore
+ };
+}
+
 function buildLocalRecipeIdeas(mealType){
- const stock=state.foods.filter(f=>Number.isFinite(daysUntil(f.expiry))&&daysUntil(f.expiry)>=0).map(f=>({...f,days:daysUntil(f.expiry)}));
- const items=[];for(const f of stock){const key=normalize(f.name);if(!items.some(x=>normalize(x.name)===key))items.push({name:f.name,category:f.category,days:f.days,roles:classifyStockFood(f)});}
- const by=(role)=>items.filter(x=>x.roles.includes(role)).sort((a,b)=>a.days-b.days);
- const types={breakfast:['Café da manhã'],lunch:['Almoço'],snack:['Lanche'],dinner:['Jantar'],dessert:['Sobremesa']};
- const wanted=normalize(mealType);const breakfast=wanted.includes('cafe'),lunch=wanted.includes('almoco'),snack=wanted.includes('lanche'),dinner=wanted.includes('jantar'),dessert=wanted.includes('sobremesa');
- const candidates=[];let seq=0;
- const add=(arr)=>{const clean=arr.filter(Boolean);if(clean.length>=2&&new Set(clean.map(x=>normalize(x.name))).size===clean.length)candidates.push(makeStockRecipe(clean,mealType,seq++));};
- const combos=(a,b,limit=18)=>{let count=0;for(const x of a)for(const y of b){if(x!==y){add([x,y]);if(++count>=limit)return;}}};
- const triples=(a,b,c,limit=24)=>{let count=0;for(const x of a)for(const y of b)for(const z of c){if(x!==y&&x!==z&&y!==z){add([x,y,z]);if(++count>=limit)return;}}};
- const bases=by('base'),carbs=by('carb'),proteins=by('protein'),fruits=by('fruit'),dairy=by('dairy'),cereals=by('cereal'),spreads=by('spread'),vegetables=by('vegetable'),seasonings=by('seasoning'),legumes=by('legume');
- if(!mealType||wanted.includes('qualquer')||breakfast||snack){combos(bases,spreads);combos(fruits,dairy);combos(fruits,cereals);combos(bases,proteins);combos(dairy,cereals);}
- if(!mealType||wanted.includes('qualquer')||lunch||dinner){triples(carbs,proteins,vegetables);combos(carbs,proteins);triples(proteins,vegetables,seasonings);combos(legumes,carbs);}
- if(!mealType||wanted.includes('qualquer')||dessert){combos(fruits,spreads);triples(fruits,dairy,cereals);combos(fruits,dairy);}
- // Variações são geradas por combinações diferentes do estoque; não existe catálogo fechado de receitas.
- const unique=[];const seen=new Set();for(const r of candidates){const k=normalize(r.name);if(!seen.has(k)){seen.add(k);unique.push(r);}}
- return unique.sort((a,b)=>b._score-a._score).slice(0,8).map(({_score,...r})=>r);
+ const stock = state.foods
+  .filter(f => Number.isFinite(daysUntil(f.expiry)) && daysUntil(f.expiry) >= 0)
+  .map(f => ({ ...f, days: daysUntil(f.expiry) }))
+  .sort((a, b) => a.days - b.days);
+
+ const items = [];
+ for(const f of stock){
+  const key = normalize(f.name);
+  if(!items.some(x => normalize(x.name) === key)){
+   items.push({ name: f.name, category: f.category, days: f.days, roles: classifyStockFood(f) });
+  }
+ }
+
+ const by = (role) => items.filter(x => x.roles.includes(role)).sort((a, b) => a.days - b.days);
+ const wanted = normalize(mealType);
+ const breakfast = wanted.includes('cafe'), lunch = wanted.includes('almoco'), snack = wanted.includes('lanche'), dinner = wanted.includes('jantar'), dessert = wanted.includes('sobremesa');
+ const anyMeal = !mealType || wanted.includes('qualquer');
+
+ const candidates = [];
+ let seq = 0;
+
+ const add = (arr, missingItems = []) => {
+  const clean = arr.filter(Boolean);
+  const missingArr = Array.isArray(missingItems) ? missingItems : (missingItems ? [missingItems] : []);
+  const minItems = missingArr.length ? 0 : 2;
+  if(clean.length >= minItems && new Set(clean.map(x => normalize(x.name))).size === clean.length && isCompatibleCombo(clean)){
+   candidates.push(makeStockRecipe(clean, mealType, seq++, missingArr));
+  }
+ };
+
+ const combos = (a, b, limit = 15) => {
+  let count = 0;
+  for(const x of a) for(const y of b){
+   if(x !== y){ add([x, y]); if(++count >= limit) return; }
+  }
+ };
+
+ const triples = (a, b, c, limit = 20) => {
+  let count = 0;
+  for(const x of a) for(const y of b) for(const z of c){
+   if(x !== y && x !== z && y !== z){ add([x, y, z]); if(++count >= limit) return; }
+  }
+ };
+
+ const bases = by('base'), carbs = by('carb'), proteins = by('protein'), fruits = by('fruit'),
+       dairy = by('dairy'), cereals = by('cereal'), spreads = by('sweet_spread'),
+       vegetables = by('vegetable'), seasonings = by('savory_seasoning'), legumes = by('legume');
+
+ // 1. Combinações 100% com o estoque
+ if(anyMeal || breakfast || snack){
+  combos(bases, spreads);
+  combos(bases, dairy);
+  combos(fruits, dairy);
+  combos(fruits, cereals);
+  combos(bases, proteins);
+  combos(dairy, cereals);
+ }
+ if(anyMeal || lunch || dinner){
+  triples(carbs, proteins, vegetables);
+  triples(carbs, seasonings, vegetables);
+  combos(carbs, seasonings);
+  combos(carbs, vegetables);
+  combos(carbs, proteins);
+  triples(proteins, vegetables, seasonings);
+  combos(legumes, carbs);
+ }
+ if(anyMeal || dessert){
+  combos(fruits, spreads);
+  triples(fruits, dairy, cereals);
+  combos(fruits, dairy);
+ }
+
+ // 2. Sugestões a partir de itens avulsos no estoque (completando com compra)
+ if(anyMeal || lunch || dinner){
+  for(const c of carbs){
+   if(!seasonings.length && !vegetables.length){
+    add([c], [{ name: 'Molho de tomate' }, { name: 'Queijo parmesão' }]);
+   } else if(seasonings.length || vegetables.length){
+    const extra = seasonings[0] || vegetables[0];
+    add([c, extra], [{ name: 'Peito de frango' }]);
+   }
+   if(!proteins.length){
+    add([c], [{ name: 'Carne moída' }, { name: 'Molho de tomate' }]);
+   }
+  }
+  for(const p of proteins){
+   if(!carbs.length && !vegetables.length){
+    add([p], [{ name: 'Arroz branco' }, { name: 'Tomate' }]);
+   }
+  }
+ }
+
+ if(anyMeal || breakfast || snack || dessert){
+  for(const s of spreads){
+   if(!bases.length){
+    add([s], [{ name: 'Pão francês' }]);
+   }
+   if(!fruits.length){
+    add([s], [{ name: 'Banana' }]);
+   }
+  }
+  for(const b of bases){
+   if(!spreads.length && !dairy.length && !proteins.length){
+    add([b], [{ name: 'Queijo muçarela' }]);
+    add([b], [{ name: 'Ovo' }]);
+   }
+  }
+  for(const f of fruits){
+   if(!dairy.length && !cereals.length){
+    add([f], [{ name: 'Iogurte natural' }, { name: 'Aveia em flocos' }]);
+   }
+  }
+ }
+
+ // 3. Receitas extras para inspirar quando o estoque ainda está pequeno (menos de 5 ideias)
+ const inspirationPool = [
+  {
+   meal: ['cafe', 'lanche', 'qualquer'],
+   name: 'Omelete cremoso com tomate e queijo',
+   emoji: '🍳',
+   minutes: 10,
+   ingredients: ['Ovo', 'Tomate', 'Queijo muçarela'],
+   steps: [
+    'Bata 2 ovos em uma tigela com uma pitada de sal e pimenta.',
+    'Aqueça uma frigideira antiaderente untada e despeje os ovos.',
+    'Quando começar a firmar, adicione tomate picado e queijo muçarela.',
+    'Dobre ao meio, espere o queijo derreter e sirva quente.'
+   ],
+   tips: 'Ideia rápida para café da manhã ou lanche reforçado.'
+  },
+  {
+   meal: ['almoco', 'jantar', 'qualquer'],
+   name: 'Arroz soltinho com frango grelhado e legumes',
+   emoji: '🍛',
+   minutes: 25,
+   ingredients: ['Arroz branco', 'Peito de frango', 'Cenoura'],
+   steps: [
+    'Cozinhe o arroz branco normalmente até ficar macio e soltinho.',
+    'Tempere o peito de frango em filés e grelhe em frigideira quente até dourar dos dois lados.',
+    'Refogue a cenoura cortada em rodelas ou tiras finas com um fio de azeite.',
+    'Monte o prato e sirva imediatamente.'
+   ],
+   tips: 'Clássico nutritivo para o dia a dia.'
+  },
+  {
+   meal: ['almoco', 'jantar', 'qualquer'],
+   name: 'Macarrão ao alho, óleo e tomate fresco',
+   emoji: '🍝',
+   minutes: 18,
+   ingredients: ['Macarrão espaguete', 'Alho', 'Azeite', 'Tomate'],
+   steps: [
+    'Cozinhe o macarrão em água fervente salgada até ficar al dente.',
+    'Em uma frigideira larga, aqueça o azeite e doure o alho fatiado em fogo baixo.',
+    'Junte o tomate picado, refogue rapidamente e misture o macarrão escorrido.',
+    'Finalize com ervas se desejar e sirva.'
+   ],
+   tips: 'Prático, econômico e fica pronto em menos de 20 minutos.'
+  },
+  {
+   meal: ['cafe', 'lanche', 'sobremesa', 'qualquer'],
+   name: 'Vitamina de banana com aveia e leite',
+   emoji: '🥤',
+   minutes: 5,
+   ingredients: ['Banana', 'Leite integral', 'Aveia em flocos'],
+   steps: [
+    'Descasque a banana e coloque no liquidificador.',
+    'Adicione o leite bem gelado e a aveia em flocos.',
+    'Bata por 40 segundos até ficar homogêneo e cremoso.',
+    'Sirva na hora.'
+   ],
+   tips: 'Ótima opção energética para começar o dia.'
+  }
+ ];
+
+ const unique = [];
+ const seen = new Set();
+ for(const r of candidates.sort((a, b) => b._score - a._score)){
+  const k = normalize(r.name);
+  if(!seen.has(k)){
+   seen.add(k);
+   unique.push(r);
+  }
+ }
+
+ if(unique.length < 4){
+  for(const insp of inspirationPool){
+   if(unique.length >= 5) break;
+   const matchesMeal = anyMeal || insp.meal.some(m => wanted.includes(m));
+   if(!matchesMeal) continue;
+   const k = normalize(insp.name);
+   if(seen.has(k)) continue;
+   seen.add(k);
+   const ingObjs = insp.ingredients.map(name => ({ name, quantity: '', unit: '', optional: false }));
+   const inStockCount = ingObjs.filter(i => aiIngredientAvailable(i)).length;
+   unique.push({
+    id: 'local-' + uid(),
+    name: insp.name,
+    emoji: insp.emoji,
+    minutes: insp.minutes,
+    servings: 2,
+    reason: inStockCount > 0
+     ? `Ideia extra: aproveita ${inStockCount} item(ns) do seu estoque e sugere os demais para completar.`
+     : `Ideia extra para inspirar: sugestão completa para sua próxima lista de compras.`,
+    ingredients: ingObjs,
+    steps: insp.steps,
+    tips: insp.tips
+   });
+  }
+ }
+
+ return unique.slice(0, 8).map(({ _score, ...r }) => r);
 }
 async function generateAiRecipes(){
  const button=$('generate-ai-recipes'),status=$('ai-recipe-status'),mealType=$('ai-meal-type').value;
@@ -456,7 +826,22 @@ function resetFoodForm(){editingId=null;$('food-form').reset();$('food-unit').va
 $('food-form').addEventListener('submit',e=>{e.preventDefault();const name=$('food-name').value.trim(),amount=$('food-qty').value,unit=$('food-unit').value,contentAmount=$('food-package-content').value,contentUnit=$('food-package-unit').value,qty=formatQty(amount,unit,contentAmount,contentUnit),category=$('food-cat').value,expiry=$('food-date').value;if(!name||!amount||Number(amount)<=0||!unit||!expiry){notify('Preencha nome, quantidade, unidade e validade.');return}if(!/^\d{4}-\d{2}-\d{2}$/.test(expiry)){notify('Informe uma data de validade válida.');return}if(/[;,.+|]/.test(name)||/\s+e\s+/i.test(name)){notify('Parece que você informou mais de um alimento. Cadastre cada alimento separadamente para não misturar nomes nem validades.');return}if(!editingId){const catalogExact=foodCatalog.find(x=>normalize(x.name)===normalize(name));const existingExact=state.foods.find(x=>normalize(x.name)===normalize(name));if(!catalogExact&&!existingExact&&!confirm(`“${name}” não foi selecionado do catálogo. Confira a escrita. Se estiver correta, você pode cadastrar este alimento personalizado.\n\nDeseja continuar?`))return;const similar=state.foods.filter(f=>normalize(f.name)===normalize(name)||baseFoodName(f.name)===baseFoodName(name));if(similar.length){const names=[...new Set(similar.map(f=>f.name))].join(', ');if(!confirm(`Você já tem alimento(s) com nome igual ou parecido: ${names}.
 
 Deseja cadastrar como um novo lote, mantendo a validade separada?`))return}}if(editingId){const f=state.foods.find(x=>x.id===editingId);if(f)Object.assign(f,{name,qty,category,expiry});notify('Alimento atualizado!')}else{state.foods.push({id:uid(),name,qty,category,expiry,createdAt:new Date().toISOString()});notify('Alimento cadastrado e salvo!')}invalidateAiRecipes();save();resetFoodForm();renderAll()});
-$('food-list').addEventListener('click',e=>{const del=e.target.closest('[data-delete]');if(del){const f=state.foods.find(x=>x.id===del.dataset.delete);if(f&&confirm(`Excluir \"${f.name}\" do estoque?`)){state.foods=state.foods.filter(x=>x.id!==f.id);invalidateAiRecipes();save();renderAll();notify('Alimento excluído.')}}});
+$('food-list').addEventListener('click',e=>{
+ const disc=e.target.closest('[data-discard]');
+ if(disc){
+  const f=state.foods.find(x=>x.id===disc.dataset.discard);
+  if(f){
+   state.foods=state.foods.filter(x=>x.id!==f.id);
+   invalidateAiRecipes();
+   save();
+   renderAll();
+   notify(`“${f.name}” vencido foi removido do estoque.`);
+  }
+  return;
+ }
+ const del=e.target.closest('[data-delete]');
+ if(del){const f=state.foods.find(x=>x.id===del.dataset.delete);if(f&&confirm(`Excluir \"${f.name}\" do estoque?`)){state.foods=state.foods.filter(x=>x.id!==f.id);invalidateAiRecipes();save();renderAll();notify('Alimento excluído.')}}
+});
 $('home-expiring').addEventListener('click',e=>{const go=e.target.closest('[data-edit]');if(go){setView('foods');setTimeout(()=>{const b=document.querySelector(`[data-edit="${go.dataset.edit}"]`);if(b)b.click()},50)}});
 $('food-search').addEventListener('input',renderFoods);$('food-filter').addEventListener('change',renderFoods);$('food-sort').addEventListener('change',renderFoods);$('recipe-search').addEventListener('input',renderRecipes);$('generate-ai-recipes').addEventListener('click',generateAiRecipes);
 $('recipe-list').addEventListener('click',e=>{const b=e.target.closest('[data-ai-add-missing]');if(!b)return;const r=aiRecipes.find(x=>x.id===b.dataset.aiAddMissing);if(!r)return;let added=0;aiMissingIngredients(r).forEach(i=>{if(!state.shopping.some(s=>normalize(s.name)===normalize(i.name)&&!s.done)){state.shopping.push({id:uid(),name:i.name,done:false,source:'recipe'});added++}});save();renderShopping();notify(added?`${added} ingrediente(s) adicionado(s) à lista.`:'Os ingredientes faltantes já estão na lista.');});
